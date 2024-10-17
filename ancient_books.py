@@ -1,19 +1,12 @@
 import re
 from enum import Enum
-from pprint import pprint
-from turtledemo.penrose import start
 
-import cv2
 import math
 import os
 import random
 import shutil
-import textwrap
-import numpy as np
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import Pool
 
-from PIL.ImageOps import scale
 from opencc import OpenCC
 from PIL import ImageFont, Image, ImageDraw, ImageEnhance, ImageFilter
 from logger import Logger
@@ -22,6 +15,9 @@ LOGGER = Logger('ancient-books')
 
 
 class TextType(Enum):
+    """
+    文本类型枚举
+    """
     CHAPTER = 'chapter'
     CONTENT = 'content'
     ANNOTATION = 'annotation'
@@ -102,7 +98,12 @@ def convert_to_traditional_chinese(lines):
     cc = OpenCC('s2t')
     return [cc.convert(line) for line in lines]
 
-def convert_number_to_chinese(number: int):
+def convert_number_to_chinese(number: int) -> str:
+    """
+    转换阿拉伯数字为中文数字
+    :param number: 待转换的阿拉伯数
+    :return: 中文数字
+    """
     number_dict = {
         '0': '零',
         '1': '一',
@@ -118,7 +119,7 @@ def convert_number_to_chinese(number: int):
     number_str = str(number)
     return ''.join([number_dict.get(x) for x in number_str])
 
-def load_font_for_char(char, fonts, font_size):
+def load_font_for_char(char:str, fonts:list, font_size:int):
     """
     从字体列表中为指定字符查找合适的字体
     :param char: 指定字符
@@ -133,19 +134,41 @@ def load_font_for_char(char, fonts, font_size):
     return
 
 
-def cut(text, length):
+def cut(text:str, length:int) -> list:
+    """
+    按指定长度分割字符串为字符串列表
+    :param text: 待分割的字符串
+    :param length: 指定字符串长度
+    :return: 分割后的字符串列表
+    """
     if not text:
         return []
     return [text[i:i + length] for i in range(0, len(text), length)]
 
 
-def calculate_remain_char_space(remain_height, char_height, is_annotation=False):
+def calculate_remain_char_space(remain_height:int, char_height:int, is_annotation=False) -> int:
+    """
+    计算每行剩余可容纳的字符数量
+    :param remain_height: 行剩余像素
+    :param char_height: 字符高度
+    :param is_annotation: 是否为批注标志符
+    :return: 可容纳的字符数量
+    """
     if is_annotation:
         return remain_height // char_height * 2
     return remain_height // char_height
 
 
-def calculate_remain_height(line, text_box_height, chapter_char_height, content_char_height, annotation_char_height):
+def calculate_remain_height(line:list, text_box_height:int, chapter_char_height:int, content_char_height:int, annotation_char_height:int) -> int:
+    """
+    计算每行剩余像素
+    :param line: 代表每行文本的字典列表
+    :param text_box_height: 文本框高度
+    :param chapter_char_height: 章节名字体高度
+    :param content_char_height: 正文字体高度
+    :param annotation_char_height: 批注字体高度
+    :return: 行剩余像素
+    """
     used_height = 0
     for item in line:
         match item.get('type'):
@@ -159,6 +182,11 @@ def calculate_remain_height(line, text_box_height, chapter_char_height, content_
 
 
 def adjust_font(params):
+    """
+    根据参数判断当前指定字体大小是否合适，字体超大则自动适配为适合当前参数的最大字体
+    :param params: 程序参数字典
+    :return: 更新后的参数字典
+    """
     width = params.get('width')
     height = params.get('height')
     chapter_font_paths = params.get('chapter_font_paths')
@@ -581,26 +609,7 @@ def gen_images(texts, params):
     """
     并发生成多页
     :param texts: 待输入的文本
-    :param font_paths: 字体文件路径列表
-    :param font_size: 字体大小
-    :param annotation_font_paths: 批注字体路径列表
-    :param annotation_font_size: 批注字体大小
-    :param output_dir: 图片生成目录
-    :param width: 图片的宽（像素）
-    :param height: 图片的高（像素）
-    :param line_count: 每页的行数
-    :param line_space: 行间距
-    :param annotation_line_space: 双行夹注的行间距
-    :param margin: 页而边距(上，下，左，右)
-    :param border: 边框宽度
-    :param backgroud: 背景图片
-    :param line_sep: 是否绘制行分隔线
-    :param line_sep_color: 行分隔线颜色，line_sep为True时有效
-    :param line_sep_width: 行分隔线宽度，line_sep为True时有效
-    :param with_noise: 是否添加噪点
-    :param noise_level: 噪点等级，with_noise为True时有效
-    :param older: 是否添加做旧效果
-    :param bg_color: 背景底图颜色
+    :param params: 程序参数字典
     :return:
     """
     output_dir = params.get('output_dir')
@@ -634,7 +643,7 @@ def gen_images(texts, params):
 def init_image(params):
     """
     根据参数绘制底图
-    :param params:
+    :param params: 程序参数字典
     :return:
     """
     scale_factor = 4
@@ -714,6 +723,15 @@ def draw_fishtail(draw, x, y, line_width, color='black'):
 
 
 def draw_middle_line(draw, x, y, bookname, params):
+    """
+    绘制筒子页中间行
+    :param draw:
+    :param x: 中间行文字绘制起始X坐标
+    :param y: 中间行文字绘制起始Y坐标
+    :param bookname: 书籍名称
+    :param params: 程序参数字典
+    :return:
+    """
     font_paths = params.get('chapter_font_paths')
     font_size = params.get('chapter_font_size')
     char_height = params.get('chapter_char_height')
@@ -728,6 +746,10 @@ def draw_middle_line(draw, x, y, bookname, params):
 
 
 def main():
+    """
+    程序入口
+    :return:
+    """
     input_path = 'input/孙子兵法.txt'
     bookname, texts = load_text(input_path)
     font_paths = ['fonts/ZiYue_Song_Keben_GBK_Updated.ttf', 'fonts/ZiYue_Song_Keben_Tranditional_Supplimentary.otf',
