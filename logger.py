@@ -75,7 +75,7 @@ class ColoredLogger(logging.Logger):
 
 
 class Logger(ColoredLogger):
-    def __init__(self, name):
+    def __init__(self, name, log_level='INFO'):
         ColoredLogger.__init__(self, name)
         # logger = logging.getLogger(name)
         # logger.setLevel(logging.DEBUG)
