@@ -7,7 +7,7 @@
     "fonts/HanYi_ChangLi_Song_Keben_JingXiu.ttf",
     "fonts/FangZheng_Song_Keben_XiuKai_GBK.TTF"
   ],
-  "chapter_font_size": 50,
+  "chapter_font_size": 54,
   "chapter_font_color": "black",
   "content_font_paths": [
     "fonts/ZiYue_Song_Keben_GBK_Updated.ttf",
@@ -17,8 +17,9 @@
     "fonts/HanYi_ChangLi_Song_Keben_JingXiu.ttf",
     "fonts/FangZheng_Song_Keben_XiuKai_GBK.TTF"
   ],
-  "content_font_size": 40,
+  "content_font_size": 44,
   "content_font_color": "black",
+  "content_char_space": 0,
   "annotation_font_paths": [
     "fonts/ZiYue_Song_Keben_GBK_Updated.ttf",
     "fonts/ZiYue_Song_Keben_Tranditional_Supplimentary.otf",
@@ -27,15 +28,22 @@
     "fonts/HanYi_ChangLi_Song_Keben_JingXiu.ttf",
     "fonts/FangZheng_Song_Keben_XiuKai_GBK.TTF"
   ],
-  "annotation_font_size": 30,
+  "annotation_font_size": 22,
   "annotation_font_color": "red",
+  "annotation_char_space": 0,
+  "middle_line_font_size": 40,
   "output_dir": "output",
   "width": 1400,
-  "height": 1200,
+  "height": 1300,
   "line_count": 10,
-  "line_space": 5,
-  "annotation_line_space": 3,
-  "margin": [200, 200, 50, 50],
+  "line_space": 0,
+  "annotation_line_space": 5,
+  "margin": [
+    200,
+    200,
+    50,
+    50
+  ],
   "border": 5,
   "border_color": "black",
   "background": null,
@@ -45,5 +53,10 @@
   "with_noise": false,
   "noise_level": 0.005,
   "older": false,
-  "bg_color": "white"
+  "bg_color": "rgb(238, 222, 176)",
+  "scale_factor": 4,
+  "fishtail_top": 140,
+  "fishtail_break_point": 10,
+  "fishtail_height": 40,
+  "fishtail_line_space": 4
 }

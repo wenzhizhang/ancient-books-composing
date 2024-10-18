@@ -7,6 +7,7 @@ import os
 import random
 import shutil
 from multiprocessing import Pool
+from pprint import pprint
 
 from opencc import OpenCC
 from PIL import ImageFont, Image, ImageDraw, ImageEnhance, ImageFilter
@@ -68,6 +69,7 @@ def load_font_for_char(char: str, fonts: list, font_size: int):
     for font_path in fonts:
         try:
             font = ImageFont.truetype(font_path, font_size)
+
             if font.getmask(char).getbbox():
                 return font
         except Exception as e:
@@ -87,29 +89,33 @@ def cut(text: str, length: int) -> list:
     return [text[i:i + length] for i in range(0, len(text), length)]
 
 
-def calculate_remain_char_space(remain_height: int, char_height: int, is_annotation=False) -> int:
+def calculate_remain_char_space(remain_height: int, char_height: int, char_space: int,
+                                is_annotation=False) -> int:
     """
     计算每行剩余可容纳的字符数量
     :param remain_height: 行剩余像素
     :param char_height: 字符高度
+    :param char_space: 字间距
     :param is_annotation: 是否为批注标志符
     :return: 可容纳的字符数量
     """
     if is_annotation:
-        return remain_height // char_height * 2
-    return remain_height // char_height
+        return remain_height // (char_height + char_space) * 2
+    return remain_height // (char_height + char_space)
 
 
-def calculate_remain_height(line: list, text_box_height: int, chapter_char_height: int,
-                            content_char_height: int,
-                            annotation_char_height: int) -> int:
+def calculate_remain_height(line: list, valid_height: int, chapter_char_height: int,
+                            content_char_height: int, content_char_space: int,
+                            annotation_char_height: int, annotation_char_space: int) -> int:
     """
     计算每行剩余像素
     :param line: 代表每行文本的字典列表
-    :param text_box_height: 文本框高度
+    :param valid_height: 有效文本框高度
     :param chapter_char_height: 章节名字体高度
     :param content_char_height: 正文字体高度
+    :param content_char_space: 正文字间距
     :param annotation_char_height: 批注字体高度
+    :param annotation_char_space: 批注字间距
     :return: 行剩余像素
     """
     used_height = 0
@@ -118,10 +124,11 @@ def calculate_remain_height(line: list, text_box_height: int, chapter_char_heigh
             case 'chapter':
                 used_height += chapter_char_height * len(item.get('value'))
             case 'content':
-                used_height += content_char_height * len(item.get('value'))
+                used_height += (content_char_height + content_char_space) * len(item.get('value'))
             case 'annotation':
-                used_height += annotation_char_height * math.ceil(len(item.get('value')) / 2)
-    return text_box_height - used_height
+                used_height += (annotation_char_height + annotation_char_space) * math.ceil(
+                    len(item.get('value')) / 2)
+    return valid_height - used_height
 
 
 def adjust_font(params):
@@ -133,11 +140,14 @@ def adjust_font(params):
     chapter_font_size = params.get('chapter_font_size')
     content_font_size = params.get('content_font_size')
     annotation_font_size = params.get('annotation_font_size')
+    content_char_space = params.get('content_char_space')
+    annotation_char_space = params.get('annotation_char_space')
     margin = params.get('margin')
     border = params.get('border')
     line_space = params.get('line_space')
 
     text_box_width = params.get('width') - margin[2] - margin[3] - border * 2 - 6
+    text_box_height = params.get('height') - margin[0] - margin[1] - border * 2 - 6
     tz_line_count = 2 * params.get('line_count') + 1
     chapter_font_size, chapter_char_width, chapter_char_height = calculate_font_size(
         params.get('chapter_font_paths')[0],
@@ -152,10 +162,25 @@ def adjust_font(params):
         line_count=tz_line_count,
         line_space=line_space)
     annotation_font_size, annotation_char_width, annotation_char_height = calculate_font_size(
-        params.get('annotation_font_paths')[0], annotation_font_size, text_box_width, line_count=tz_line_count,
-        line_space=line_space, is_annotation=True, annotation_line_space=params.get('annotation_line_space'))
+        params.get('annotation_font_paths')[0], annotation_font_size, text_box_width,
+        line_count=tz_line_count,
+        line_space=line_space, is_annotation=True,
+        annotation_line_space=params.get('annotation_line_space'))
+
+    if content_char_height < 2 * annotation_char_height:
+        content_char_space = 2 * annotation_char_height - content_char_height
+    elif content_char_height > 2 * annotation_char_height:
+        annotation_char_space = (content_char_height - 2 * annotation_char_height) // 2
+    useless_height = text_box_height % (content_char_height + content_char_space)
+    if useless_height % 2 == 0:
+        inner_margin = (useless_height // 2, useless_height // 2)
+    else:
+        inner_margin = (useless_height // 2, useless_height - useless_height // 2)
+    max_chapter_chars_per_line = text_box_height // chapter_char_height
+    max_content_chars_per_line = (text_box_height - inner_margin[0] - inner_margin[1]) // (content_char_height + content_char_space)
+    max_annotation_chars_per_line = (text_box_height - inner_margin[0] - inner_margin[1]) // (annotation_char_height + annotation_char_space) * 2
     params['chapter_font_size'] = chapter_font_size
-    params['chapter_content_font_size'] = content_font_size
+    params['content_font_size'] = content_font_size
     params['annotation_font_size'] = annotation_font_size
     params['chapter_char_width'] = chapter_char_width
     params['chapter_char_height'] = chapter_char_height
@@ -165,71 +190,92 @@ def adjust_font(params):
     params['annotation_char_height'] = annotation_char_height
     params['text_box_width'] = text_box_width
     params['text_box_height'] = params.get('height') - margin[0] - margin[1] - border * 2 - 6
+    params['content_char_space'] = content_char_space
+    params['annotation_char_space'] = annotation_char_space
+    params['inner_margin'] = inner_margin
+    params['max_chapter_chars_per_line'] = max_chapter_chars_per_line
+    params['max_content_chars_per_line'] = max_content_chars_per_line
+    params['max_annotation_chars_per_line'] = max_annotation_chars_per_line
 
     return params
 
 
-def split_paragraph(paragraph, text_box_height, content_char_height, annotation_char_height):
+def split_paragraph(chapter_name, paragraph, params):
     """
     将段落文本进一步分割为行
+    :param chapter_name: 章节名
     :param paragraph: 文本段落
     :param text_box_height: 文本框高度
     :param content_char_height: 正文字体高度
+    :param content_char_space: 正文字间距
     :param annotation_char_height: 批注字体高度
+    :param annotation_char_space: 批注字间距
     :return: 分割后的文本行列表
     """
-    max_content_chars_per_line = text_box_height // content_char_height
+    content_char_height = params.get('content_char_height')
+    content_char_space = params.get('content_char_space')
+    annotation_char_height = params.get('annotation_char_height')
+    annotation_char_space = params.get('annotation_char_space')
+    max_content_chars_per_line = params.get('max_content_chars_per_line')
     # 双行夹注
-    max_annotation_chars_per_line = text_box_height // annotation_char_height * 2
+    max_annotation_chars_per_line = params.get('max_annotation_chars_per_line')
+    text_box_height = params.get('text_box_height')
+    inner_margin = params.get('inner_margin')
+    valid_height = text_box_height - inner_margin[0] - inner_margin[1]
 
     sentences = paragraph.get('texts')
     annotations = paragraph.get('annotations')
     lines = []
-    remain_height = text_box_height
+    remain_height = valid_height
     for i in range(len(sentences)):
         sentence = sentences[i]
         annotation = None
         if i < len(annotations):
             annotation = annotations[i]
-        if remain_height < text_box_height:
-            remain_content_char_space = remain_height // content_char_height
+        if remain_height < valid_height:
+            remain_content_char_space = remain_height // (content_char_height + content_char_space)
             if remain_content_char_space == 0:
-                remain_height = text_box_height
+                remain_height = valid_height
             elif remain_content_char_space < len(sentence):
-                lines[-1].append(
+                lines[-1].get('line').append(
                     dict(type=TextType.CONTENT, value=sentence[0:remain_content_char_space]))
-                remain_height = text_box_height
+                remain_height = valid_height
                 sentence = sentence[remain_content_char_space:]
             else:
-                lines[-1].append(dict(type=TextType.CONTENT, value=sentence))
-                remain_height -= len(sentence) * content_char_height
+                lines[-1].get('line').append(dict(type=TextType.CONTENT, value=sentence))
+                remain_height -= len(sentence) * (content_char_height + content_char_space)
                 sentence = None
         for part in cut(sentence, max_content_chars_per_line):
-            lines.append([dict(type=TextType.CONTENT, value=part)])
+            lines.append(dict(chapter=chapter_name, line=[dict(type=TextType.CONTENT, value=part)]))
             if len(part) < max_content_chars_per_line:
-                remain_height -= len(part) * content_char_height
+                remain_height -= len(part) * (content_char_height + content_char_space)
             else:
-                remain_height = text_box_height
+                remain_height = valid_height
         if annotation:
-            if remain_height < text_box_height:
-                remain_annotation_char_space = remain_height // annotation_char_height * 2
+            if remain_height < valid_height:
+                remain_annotation_char_space = remain_height // (
+                        annotation_char_height + annotation_char_space) * 2
                 if remain_annotation_char_space == 0:
-                    remain_height = text_box_height
+                    remain_height = valid_height
                 elif remain_annotation_char_space < len(annotation):
-                    lines[-1].append(dict(type=TextType.ANNOTATION,
+                    lines[-1].get('line').append(dict(type=TextType.ANNOTATION,
                                           value=annotation[0:remain_annotation_char_space]))
-                    remain_height = text_box_height
+                    remain_height = valid_height
                     annotation = annotation[remain_annotation_char_space:]
                 else:
-                    lines[-1].append(dict(type=TextType.ANNOTATION, value=annotation))
-                    remain_height -= (math.ceil(len(annotation) / 2)) * annotation_char_height
+                    lines[-1].get('line').append(dict(type=TextType.ANNOTATION, value=annotation))
+                    remain_height -= (math.ceil(len(annotation) / 2)) * (
+                            annotation_char_height + annotation_char_space)
+                    if math.ceil(len(annotation) / 2) % 2 != 0:
+                        remain_height -= (annotation_char_height + annotation_char_space)
                     annotation = None
         for part in cut(annotation, max_annotation_chars_per_line):
-            lines.append([dict(type=TextType.ANNOTATION, value=part)])
+            lines.append(dict(chapter=chapter_name, line=[dict(type=TextType.ANNOTATION, value=part)]))
             if len(part) < max_annotation_chars_per_line - 1:
-                remain_height -= math.ceil(len(part) / 2) * annotation_char_height
+                remain_height -= math.ceil(len(part) / 2) * (
+                        annotation_char_height + annotation_char_space)
             else:
-                remain_height = text_box_height
+                remain_height = valid_height
     return lines
 
 
@@ -244,12 +290,15 @@ def split_text(texts, params):
     chapter_char_height = params.get('chapter_char_height')
     content_char_height = params.get('content_char_height')
     annotation_char_height = params.get('annotation_char_height')
+    content_char_space = params.get('content_char_space')
+    annotation_char_space = params.get('annotation_char_space')
     line_count = params.get('line_count')
     bookname = params.get('bookname')
-
-    max_chapter_chars_per_line = text_box_height // chapter_char_height
-    max_content_chars_per_line = text_box_height // content_char_height
-    max_annotation_chars_per_line = text_box_height // annotation_char_height * 2
+    inner_margin = params.get('inner_margin')
+    max_chapter_chars_per_line = params.get('max_chapter_chars_per_line')
+    max_content_chars_per_line = params.get('max_content_chars_per_line')
+    max_annotation_chars_per_line = params.get('max_annotation_chars_per_line')
+    valid_height = text_box_height - inner_margin[0] - inner_margin[1]
 
     text_lines = []
     for chapter in texts:
@@ -258,34 +307,34 @@ def split_text(texts, params):
         chapter_annotation = chapter.get('annotation')
         for chapter_sec in cut(chapter_name, max_chapter_chars_per_line):
             line = [{'type': TextType.CHAPTER, 'value': chapter_sec}]
-            text_lines.append(line)
+            text_lines.append(dict(chapter=chapter_name, line=line))
         if chapter_annotation:
-            remain_height = calculate_remain_height(text_lines[-1], text_box_height,
-                                                    chapter_char_height,
-                                                    content_char_height, annotation_char_height)
+            remain_height = calculate_remain_height(text_lines[-1].get('line'), valid_height,
+                                                    chapter_char_height, content_char_height,
+                                                    content_char_space, annotation_char_height,
+                                                    annotation_char_space)
             remain_annotation_char_space = calculate_remain_char_space(remain_height,
                                                                        annotation_char_height,
+                                                                       annotation_char_space,
                                                                        is_annotation=True)
             if len(chapter_annotation) <= remain_annotation_char_space:
-                text_lines[-1].append({'type': TextType.ANNOTATION, 'value': chapter_annotation})
+                text_lines[-1].get('line').append({'type': TextType.ANNOTATION, 'value': chapter_annotation})
             else:
-                text_lines[-1].append(
+                text_lines[-1].get('line').append(
                     {'type': TextType.ANNOTATION,
                      'value': chapter_annotation[0:remain_annotation_char_space]})
                 chapter_annotation = chapter_annotation[remain_annotation_char_space:]
                 for annotation_sec in cut(chapter_annotation, max_annotation_chars_per_line):
                     line = [{'type': TextType.ANNOTATION, 'value': annotation_sec}]
-                    text_lines.append(line)
+                    text_lines.append(dict(chapter=chapter_name, line=line))
         contents = chapter.get('content')
         for paragraph in contents:
-            lines = split_paragraph(paragraph, text_box_height, content_char_height,
-                                    annotation_char_height)
+            lines = split_paragraph(chapter_name, paragraph, params)
             text_lines.extend(lines)
 
         if len(text_lines) % line_count != 0:
-            text_lines.extend([[] for _ in range(line_count - (len(text_lines) % line_count) - 1)])
-            text_lines.append([dict(type=TextType.CHAPTER, value=f'{bookname} {chapter_name}')])
-
+            text_lines.extend([dict(chapter=chapter_name, line=[]) for _ in range(line_count - (len(text_lines) % line_count))])
+            # text_lines.append([dict(type=TextType.CHAPTER, value=f'{bookname} {chapter_name}')])
     return text_lines
 
 
@@ -351,6 +400,9 @@ def calculate_font_size(font_path, font_size, text_box_width, line_count=10, lin
     :param annotation_line_space: 双行夹批行间距， is_annotation为True时有效
     :return: 最终计算出的字体字号，文字宽度，文字高度
     """
+    size = font_size
+    char_width = 0
+    char_height = 0
     for size in range(font_size, 0, -1):
         font = ImageFont.truetype(font_path, size)
         char_width, char_height = font.getbbox('字')[2], font.getbbox('字')[3]
@@ -467,14 +519,14 @@ def apply_yellowed_page_effect_with_gradient(image):
     return final_image
 
 
-def gen_image_with_fixed_size(lines, params, output_path):
+def gen_image_with_fixed_size(lines, params, output_dir, page):
     """
     生成排版好的图片
     :return:
     """
-
     margin = params.get('margin')
     border = params.get('border')
+    inner_margin = params.get('inner_margin')
 
     LOGGER.info("开始生成图片")
 
@@ -487,38 +539,40 @@ def gen_image_with_fixed_size(lines, params, output_path):
         if line_index >= params.get('line_count'):
             line_index += 1
         x = params.get('width') - margin[3] - (
-                    line_index + 1) * line_width - border - 3 + params.get('line_space') * 2
-        y = margin[0] + border + 3
+                line_index + 1) * line_width - border - 3 + params.get('line_space') / 2
+        y = margin[0] + border + 3 + inner_margin[0]
         y_anno_start = 0
         y_anno_end = 0
         font_paths = []
         font_size = 0
         font_color = 'black'
         char_height = 0
-        for i in range(len(line)):
-            item = line[i]
+        char_space = 0
+        for i in range(len(line.get('line'))):
+            item = line.get('line')[i]
             x_offset = 0
             text_type = item.get('type')
             text = item.get('value')
-            if i == len(line) - 1 and i != 0 and text_type is TextType.CONTENT:
-                y = params.get('height') - margin[1] - border - 3 - len(text) * params.get(
-                    'content_char_height')
+
             match text_type:
                 case TextType.CHAPTER:
                     font_paths = params.get('chapter_font_paths')
                     font_size = params.get('chapter_font_size')
                     font_color = params.get('chapter_font_color')
                     char_height = params.get('chapter_char_height')
+                    y = margin[0] + border + 3
                 case TextType.CONTENT:
                     font_paths = params.get('content_font_paths')
                     font_size = params.get('content_font_size')
                     font_color = params.get('content_font_color')
                     char_height = params.get('content_char_height')
+                    char_space = params.get('content_char_space')
                 case TextType.ANNOTATION:
                     font_paths = params.get('annotation_font_paths')
                     font_size = params.get('annotation_font_size')
                     font_color = params.get('annotation_font_color')
                     char_height = params.get('annotation_char_height')
+                    char_space = params.get('annotation_char_space')
                     x_offset = params.get('annotation_char_width') + params.get(
                         'annotation_line_space') - params.get('line_space')
                     x = x + x_offset
@@ -532,17 +586,19 @@ def gen_image_with_fixed_size(lines, params, output_path):
                     draw.text((x, y), char, font=font, fill=font_color)
                 if text_type == TextType.ANNOTATION and i == math.ceil(text_length / 2) - 1:
                     x = x - x_offset
-                    y_anno_end = y + char_height
+                    y_anno_end = y + char_height + char_space
                     y = y_anno_start
                 else:
-                    y += char_height
+                    y += char_height + char_space
             if text_type == TextType.ANNOTATION:
                 y = y_anno_end
+                if math.ceil(text_length / 2) % 2 != 0:
+                    y = y + char_height + char_space
 
-    x = params.get('width') - margin[3] - border - 3 - (
-                params.get('line_count') + 1) * line_width + params.get('line_space')
-    y = margin[0] + border + 3
-    draw_middle_line(draw, x, y, params.get('bookname'), params)
+    chapter_name = lines[0].get('chapter')
+    draw_middle_line(draw, params.get('bookname'), chapter_name, convert_number_to_chinese(page), line_width, params)
+    output_path = os.path.join(output_dir,
+                               f'第{convert_number_to_chinese(page)}頁.png')
     LOGGER.info(f'文本绘制完成, 圖片保存至{output_path}')
     image.save(output_path)
 
@@ -561,26 +617,24 @@ def gen_images(texts, params):
         shutil.rmtree(output_dir)
         os.makedirs(output_dir)
 
-    lines = split_text(texts, params)
+    text_lines = split_text(texts, params)
     line_count = params.get('line_count')
-    if len(lines) > line_count * 2:
-        with Pool(processes=10) as pool:
-            tasks = []
-            for i in range(math.ceil(len(lines) / (line_count * 2))):
-                part = lines[i * line_count * 2: line_count * 2 * (i + 1)]
-                output_path = os.path.join(output_dir,
-                                           f'第{convert_number_to_chinese(i + 1)}頁.png')
-                tasks.append(pool.apply_async(
-                    gen_image_with_fixed_size, (part, params, output_path)))
 
-            for task in tasks:
-                try:
-                    task.get()
-                except Exception as e:
-                    LOGGER.exception(e)
-    else:
-        output_path = os.path.join(output_dir, 'page-1.png')
-        gen_image_with_fixed_size(lines, params, output_path)
+    # pprint(text_lines)
+    page = 1
+    with Pool(processes=10) as pool:
+        tasks = []
+        for i in range(math.ceil(len(text_lines) / (line_count * 2))):
+            part = text_lines[i * line_count * 2: line_count * 2 * (i + 1)]
+            tasks.append(pool.apply_async(
+                gen_image_with_fixed_size, (part, params, output_dir, page)))
+            page += 1
+
+        for task in tasks:
+            try:
+                task.get()
+            except Exception as e:
+                LOGGER.exception(e)
 
 
 def init_image(params):
@@ -589,7 +643,7 @@ def init_image(params):
     :param params: 程序参数字典
     :return:
     """
-    scale_factor = 4
+    scale_factor = params.get('scale_factor')
     width = params.get('width')
     height = params.get('height')
     margin = params.get('margin')
@@ -615,11 +669,14 @@ def init_image(params):
                                color=params.get('bg_color'))
 
     fishtail_draw = ImageDraw.Draw(image_fishtail)
+
+    fishtail_top = params.get('fishtail_top')
+    fishtail_height = params.get('fishtail_height')
+    fishtail_line_space = params.get('fishtail_line_space')
+    fishtail_break_point = params.get('fishtail_break_point')
     center_x = width - margin[3] - border - 3 - line_width * params.get('line_count')
-    center_y = margin[0] + border + 3 + (len(params.get('bookname')) + 1) * params.get(
-        'chapter_char_height')
-    draw_fishtail(fishtail_draw, scale_factor * center_x, scale_factor * center_y,
-                  scale_factor * line_width)
+    center_y = margin[0] + border + 3 + fishtail_top
+    draw_fishtail(fishtail_draw, scale_factor, center_x, center_y, line_width, fishtail_height, fishtail_line_space, fishtail_break_point)
     layer_fishtail = image_fishtail.resize((width, height), Image.Resampling.LANCZOS)
 
     image.paste(layer_fishtail)
@@ -643,53 +700,88 @@ def init_image(params):
     return image, draw, line_width
 
 
-def draw_fishtail(draw, x, y, line_width, color='black'):
+def draw_fishtail(draw, scale_factor, x, y, line_width, fishtail_height, fishtail_line_space, fishtail_break_point, color='black'):
     """
     绘制一个简单的对称鱼尾图案。
-
     :param draw: ImageDraw 对象
+    :param scale_factor: 放大倍数
     :param x: 图案右顶点X坐标
     :param y: 图案右顶点Y坐标
     :param line_width: 中间行宽度
+    :param fishtail_height: 鱼尾图案高度
+    :param fishtail_line_space: 鲁鱼尾图上下直线距离鱼尾图案主体的距离
+    :param fishtail_break_point: 鱼尾图案中间转折点距离鱼尾图案上边的距离
     :param color: 图案颜色
     """
     # 定义鱼尾的几个关键点（简单的对称多边形）
+    x = x * scale_factor
+    y = y * scale_factor
+    line_width = line_width * scale_factor
+    fishtail_break_point = fishtail_break_point * scale_factor
+    fishtail_height = fishtail_height * scale_factor
+    fishtail_line_space = fishtail_line_space * scale_factor
+
+
     points = [
         (x, y),  # 右上顶点
-        (x, y + 80),  # 右下顶点
-        (x - line_width / 2, y + 40),  # 中间转折点
-        (x - line_width, y + 80),  # 左下顶点
+        (x, y + fishtail_height),  # 右下顶点
+        (x - line_width / 2, y + fishtail_break_point),  # 中间转折点
+        (x - line_width, y + fishtail_height),  # 左下顶点
         (x - line_width, y)  # 左上顶点
     ]
 
     # 绘制多边形
     draw.polygon(points, fill=color, outline=color)
-    draw.line([(x, y - 16), (x - line_width, y - 16)], fill='black', width=4)
-    draw.line([(x, y + 96), (x - line_width / 2, y + 56)], fill='black', width=4)
-    draw.line([(x - line_width / 2, y + 56), (x - line_width, y + 96)], fill='black', width=4)
+    draw.line([(x, y - fishtail_line_space), (x - line_width, y - fishtail_line_space)], fill='black', width=scale_factor)
+    draw.line([(x, y + fishtail_height + fishtail_line_space), (x - line_width / 2, y + fishtail_break_point + fishtail_line_space)], fill='black', width=scale_factor)
+    draw.line([(x - line_width / 2, y + fishtail_break_point + fishtail_line_space), (x - line_width, y + fishtail_height + fishtail_line_space)], fill='black', width=scale_factor)
 
 
-def draw_middle_line(draw, x, y, bookname, params):
+def draw_middle_line(draw, bookname, chapter_name, page, line_width, params):
     """
     绘制筒子页中间行
     :param draw:
-    :param x: 中间行文字绘制起始X坐标
-    :param y: 中间行文字绘制起始Y坐标
+    :param title_x: 中间行文字绘制起始X坐标
+    :param title_y: 中间行文字绘制起始Y坐标
     :param bookname: 书籍名称
+    :param chapter_name: 章节名
+    :param page: 页码
     :param params: 程序参数字典
     :return:
     """
     font_paths = params.get('chapter_font_paths')
-    font_size = params.get('chapter_font_size')
-    char_height = params.get('chapter_char_height')
+    font_size = params.get('middle_line_font_size')
+    font = ImageFont.truetype(font_paths[0], font_size)
+    char_width, char_height = font.getbbox('字')[2], font.getbbox('字')[3]
+
+    title_x = params.get('width') - params.get('margin')[3] - params.get('border') - 3 - (params.get('line_count') + 0.5) * line_width - char_width / 2
+    title_y = params.get('margin')[0] + params.get('border') + 3 + params.get('fishtail_top') + params.get('fishtail_height')
 
     bookname_length = len(bookname)
     for i in range(bookname_length):
         char = bookname[i]
         font = load_font_for_char(char, font_paths, font_size)
         if font:
-            draw.text((x, y), char, font=font, fill='black')
-            y += char_height
+            draw.text((title_x, title_y), char, font=font, fill='black')
+            title_y += char_height
+
+    chapter_x = title_x
+    chapter_y = title_y + char_height
+    for i in range(len(chapter_name)):
+        char = chapter_name[i]
+        font = load_font_for_char(char, font_paths, font_size)
+        if font:
+            draw.text((chapter_x, chapter_y), char, font=font, fill='black')
+            chapter_y += char_height
+
+    page_x = title_x
+    page_y = params.get('height') - params.get('margin')[1] - params.get('border') - 3 - (len(page) + 1) * char_height
+    for i in range(len(page)):
+        char = page[i]
+        font = load_font_for_char(char, font_paths, font_size)
+        if font:
+            draw.text((page_x, page_y), char, font=font, fill='black')
+            page_y += char_height
 
 
 def main():
@@ -710,5 +802,26 @@ def main():
     gen_images(texts, params)
 
 
+def check_font_for_char(char: str, fonts: list, font_size: int):
+    """
+    从字体列表中为指定字符查找合适的字体
+    :param char: 指定字符
+    :param fonts: 字体列表
+    :param font_size: 字体大小
+    :return: 包含该字符的字体
+    """
+    for font_path in fonts:
+        try:
+            font = ImageFont.truetype(font_path, font_size)
+
+            bbox = font.getmask(char).getbbox()
+            print(bbox)
+            print(font.getbbox(char))
+        except Exception as e:
+            LOGGER.exception(e)
+    return None
+
+
 if __name__ == '__main__':
     main()
+    # check_font_for_char('汉', ['fonts/ZiYue_Song_Keben_GBK_Updated.ttf'], 44)
