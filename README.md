@@ -42,4 +42,4 @@
 
 ## 输出图片示例
 
-![alt text](第一頁-1.png)
+![alt text](第一頁.png)

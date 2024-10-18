@@ -539,7 +539,8 @@ def gen_image_with_fixed_size(lines, params, output_dir, page):
         if line_index >= params.get('line_count'):
             line_index += 1
         x = params.get('width') - margin[3] - (
-                line_index + 1) * line_width - border - 3 + params.get('line_space') / 2
+                line_index + 0.5) * line_width - border - 3
+        x_start = x
         y = margin[0] + border + 3 + inner_margin[0]
         y_anno_start = 0
         y_anno_end = 0
@@ -547,6 +548,7 @@ def gen_image_with_fixed_size(lines, params, output_dir, page):
         font_size = 0
         font_color = 'black'
         char_height = 0
+        char_width = 0
         char_space = 0
         for i in range(len(line.get('line'))):
             item = line.get('line')[i]
@@ -559,25 +561,29 @@ def gen_image_with_fixed_size(lines, params, output_dir, page):
                     font_paths = params.get('chapter_font_paths')
                     font_size = params.get('chapter_font_size')
                     font_color = params.get('chapter_font_color')
+                    char_width = params.get('chapter_char_width')
                     char_height = params.get('chapter_char_height')
+                    x_offset -= char_width / 2
                     y = margin[0] + border + 3
                 case TextType.CONTENT:
                     font_paths = params.get('content_font_paths')
                     font_size = params.get('content_font_size')
                     font_color = params.get('content_font_color')
+                    char_width = params.get('content_char_width')
                     char_height = params.get('content_char_height')
                     char_space = params.get('content_char_space')
+                    x_offset -= char_width / 2
                 case TextType.ANNOTATION:
                     font_paths = params.get('annotation_font_paths')
                     font_size = params.get('annotation_font_size')
                     font_color = params.get('annotation_font_color')
                     char_height = params.get('annotation_char_height')
+                    char_width = params.get('annotation_char_width')
                     char_space = params.get('annotation_char_space')
-                    x_offset = params.get('annotation_char_width') + params.get(
-                        'annotation_line_space') - params.get('line_space')
-                    x = x + x_offset
+                    x_offset += line_width / 2 - char_width - params.get('annotation_line_space')
                     y_anno_start = y
 
+            x += x_offset
             text_length = len(text)
             for i in range(text_length):
                 char = text[i]
@@ -585,7 +591,7 @@ def gen_image_with_fixed_size(lines, params, output_dir, page):
                 if font:
                     draw.text((x, y), char, font=font, fill=font_color)
                 if text_type == TextType.ANNOTATION and i == math.ceil(text_length / 2) - 1:
-                    x = x - x_offset
+                    x = x - x_offset - char_width
                     y_anno_end = y + char_height + char_space
                     y = y_anno_start
                 else:
@@ -594,6 +600,7 @@ def gen_image_with_fixed_size(lines, params, output_dir, page):
                 y = y_anno_end
                 if math.ceil(text_length / 2) % 2 != 0:
                     y = y + char_height + char_space
+            x = x_start
 
     chapter_name = lines[0].get('chapter')
     draw_middle_line(draw, params.get('bookname'), chapter_name, convert_number_to_chinese(page), line_width, params)
