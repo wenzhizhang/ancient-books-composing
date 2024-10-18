@@ -43,7 +43,7 @@ def convert_number_to_chinese(number: int) -> str:
     :return: 中文数字
     """
     number_dict = {
-        '0': '零',
+        '0': '〇',
         '1': '一',
         '2': '二',
         '3': '三',
@@ -177,8 +177,10 @@ def adjust_font(params):
     else:
         inner_margin = (useless_height // 2, useless_height - useless_height // 2)
     max_chapter_chars_per_line = text_box_height // chapter_char_height
-    max_content_chars_per_line = (text_box_height - inner_margin[0] - inner_margin[1]) // (content_char_height + content_char_space)
-    max_annotation_chars_per_line = (text_box_height - inner_margin[0] - inner_margin[1]) // (annotation_char_height + annotation_char_space) * 2
+    max_content_chars_per_line = (text_box_height - inner_margin[0] - inner_margin[1]) // (
+                content_char_height + content_char_space)
+    max_annotation_chars_per_line = (text_box_height - inner_margin[0] - inner_margin[1]) // (
+                annotation_char_height + annotation_char_space) * 2
     params['chapter_font_size'] = chapter_font_size
     params['content_font_size'] = content_font_size
     params['annotation_font_size'] = annotation_font_size
@@ -259,7 +261,8 @@ def split_paragraph(chapter_name, paragraph, params):
                     remain_height = valid_height
                 elif remain_annotation_char_space < len(annotation):
                     lines[-1].get('line').append(dict(type=TextType.ANNOTATION,
-                                          value=annotation[0:remain_annotation_char_space]))
+                                                      value=annotation[
+                                                            0:remain_annotation_char_space]))
                     remain_height = valid_height
                     annotation = annotation[remain_annotation_char_space:]
                 else:
@@ -270,7 +273,8 @@ def split_paragraph(chapter_name, paragraph, params):
                         remain_height -= (annotation_char_height + annotation_char_space)
                     annotation = None
         for part in cut(annotation, max_annotation_chars_per_line):
-            lines.append(dict(chapter=chapter_name, line=[dict(type=TextType.ANNOTATION, value=part)]))
+            lines.append(
+                dict(chapter=chapter_name, line=[dict(type=TextType.ANNOTATION, value=part)]))
             if len(part) < max_annotation_chars_per_line - 1:
                 remain_height -= math.ceil(len(part) / 2) * (
                         annotation_char_height + annotation_char_space)
@@ -318,7 +322,8 @@ def split_text(texts, params):
                                                                        annotation_char_space,
                                                                        is_annotation=True)
             if len(chapter_annotation) <= remain_annotation_char_space:
-                text_lines[-1].get('line').append({'type': TextType.ANNOTATION, 'value': chapter_annotation})
+                text_lines[-1].get('line').append(
+                    {'type': TextType.ANNOTATION, 'value': chapter_annotation})
             else:
                 text_lines[-1].get('line').append(
                     {'type': TextType.ANNOTATION,
@@ -333,7 +338,8 @@ def split_text(texts, params):
             text_lines.extend(lines)
 
         if len(text_lines) % line_count != 0:
-            text_lines.extend([dict(chapter=chapter_name, line=[]) for _ in range(line_count - (len(text_lines) % line_count))])
+            text_lines.extend([dict(chapter=chapter_name, line=[]) for _ in
+                               range(line_count - (len(text_lines) % line_count))])
             # text_lines.append([dict(type=TextType.CHAPTER, value=f'{bookname} {chapter_name}')])
     return text_lines
 
@@ -603,9 +609,10 @@ def gen_image_with_fixed_size(lines, params, output_dir, page):
             x = x_start
 
     chapter_name = lines[0].get('chapter')
-    draw_middle_line(draw, params.get('bookname'), chapter_name, convert_number_to_chinese(page), line_width, params)
+    draw_middle_line(draw, params.get('bookname'), chapter_name, convert_number_to_chinese(page),
+                     line_width, params)
     output_path = os.path.join(output_dir,
-                               f'第{convert_number_to_chinese(page)}頁.png')
+                               f'Page-{page}.png')
     LOGGER.info(f'文本绘制完成, 圖片保存至{output_path}')
     image.save(output_path)
 
@@ -683,7 +690,8 @@ def init_image(params):
     fishtail_break_point = params.get('fishtail_break_point')
     center_x = width - margin[3] - border - 3 - line_width * params.get('line_count')
     center_y = margin[0] + border + 3 + fishtail_top
-    draw_fishtail(fishtail_draw, scale_factor, center_x, center_y, line_width, fishtail_height, fishtail_line_space, fishtail_break_point)
+    draw_fishtail(fishtail_draw, scale_factor, center_x, center_y, line_width, fishtail_height,
+                  fishtail_line_space, fishtail_break_point)
     layer_fishtail = image_fishtail.resize((width, height), Image.Resampling.LANCZOS)
 
     image.paste(layer_fishtail)
@@ -707,7 +715,8 @@ def init_image(params):
     return image, draw, line_width
 
 
-def draw_fishtail(draw, scale_factor, x, y, line_width, fishtail_height, fishtail_line_space, fishtail_break_point, color='black'):
+def draw_fishtail(draw, scale_factor, x, y, line_width, fishtail_height, fishtail_line_space,
+                  fishtail_break_point, color='black'):
     """
     绘制一个简单的对称鱼尾图案。
     :param draw: ImageDraw 对象
@@ -728,7 +737,6 @@ def draw_fishtail(draw, scale_factor, x, y, line_width, fishtail_height, fishtai
     fishtail_height = fishtail_height * scale_factor
     fishtail_line_space = fishtail_line_space * scale_factor
 
-
     points = [
         (x, y),  # 右上顶点
         (x, y + fishtail_height),  # 右下顶点
@@ -739,9 +747,14 @@ def draw_fishtail(draw, scale_factor, x, y, line_width, fishtail_height, fishtai
 
     # 绘制多边形
     draw.polygon(points, fill=color, outline=color)
-    draw.line([(x, y - fishtail_line_space), (x - line_width, y - fishtail_line_space)], fill='black', width=scale_factor)
-    draw.line([(x, y + fishtail_height + fishtail_line_space), (x - line_width / 2, y + fishtail_break_point + fishtail_line_space)], fill='black', width=scale_factor)
-    draw.line([(x - line_width / 2, y + fishtail_break_point + fishtail_line_space), (x - line_width, y + fishtail_height + fishtail_line_space)], fill='black', width=scale_factor)
+    draw.line([(x, y - fishtail_line_space), (x - line_width, y - fishtail_line_space)],
+              fill='black', width=scale_factor)
+    draw.line([(x, y + fishtail_height + fishtail_line_space),
+               (x - line_width / 2, y + fishtail_break_point + fishtail_line_space)], fill='black',
+              width=scale_factor)
+    draw.line([(x - line_width / 2, y + fishtail_break_point + fishtail_line_space),
+               (x - line_width, y + fishtail_height + fishtail_line_space)], fill='black',
+              width=scale_factor)
 
 
 def draw_middle_line(draw, bookname, chapter_name, page, line_width, params):
@@ -761,8 +774,10 @@ def draw_middle_line(draw, bookname, chapter_name, page, line_width, params):
     font = ImageFont.truetype(font_paths[0], font_size)
     char_width, char_height = font.getbbox('字')[2], font.getbbox('字')[3]
 
-    title_x = params.get('width') - params.get('margin')[3] - params.get('border') - 3 - (params.get('line_count') + 0.5) * line_width - char_width / 2
-    title_y = params.get('margin')[0] + params.get('border') + 3 + params.get('fishtail_top') + params.get('fishtail_height')
+    title_x = params.get('width') - params.get('margin')[3] - params.get('border') - 3 - (
+                params.get('line_count') + 0.5) * line_width - char_width / 2
+    title_y = params.get('margin')[0] + params.get('border') + 3 + params.get(
+        'fishtail_top') + params.get('fishtail_height')
 
     bookname_length = len(bookname)
     for i in range(bookname_length):
@@ -782,7 +797,8 @@ def draw_middle_line(draw, bookname, chapter_name, page, line_width, params):
             chapter_y += char_height
 
     page_x = title_x
-    page_y = params.get('height') - params.get('margin')[1] - params.get('border') - 3 - (len(page) + 1) * char_height
+    page_y = params.get('height') - params.get('margin')[1] - params.get('border') - 3 - (
+                len(page) + 1) * char_height
     for i in range(len(page)):
         char = page[i]
         font = load_font_for_char(char, font_paths, font_size)
@@ -791,12 +807,38 @@ def draw_middle_line(draw, bookname, chapter_name, page, line_width, params):
             page_y += char_height
 
 
+def save_pdf(source_path, target_path):
+    """
+    保存圖片為PDF
+    :param source_path: 圖片文件夾路徑
+    :param target_path: PDF文件路徑
+    :return:
+    """
+
+    output_dir = os.path.dirname(target_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    LOGGER.info(f'輸出{source_path}目錄下的圖片到PDF文件{target_path}')
+    files = os.listdir(source_path)
+    image_files = []
+    for file in files:
+        if file.endswith('.png') or file.endswith('.jpg'):
+            image_files.append(os.path.join(source_path, file))
+    image_files.sort()
+
+    images = [Image.open(image_file).convert('RGB') for image_file in image_files]
+    if images:
+        images[0].save(target_path, save_all=True, append_images=images[1:])
+    LOGGER.info(f'輸出到PDF文件{target_path}完成')
+
+
 def main():
     """
     程序入口
     :return:
     """
-    input_path = 'input/孙子兵法.txt'
+    input_path = 'input/孫子兵法.txt'
     with open(os.path.join('config', 'config.json'), encoding='utf-8') as f:
         params = json.load(f)
 
@@ -807,28 +849,8 @@ def main():
     params['output_dir'] = output_dir
     params['bookname'] = bookname
     gen_images(texts, params)
-
-
-def check_font_for_char(char: str, fonts: list, font_size: int):
-    """
-    从字体列表中为指定字符查找合适的字体
-    :param char: 指定字符
-    :param fonts: 字体列表
-    :param font_size: 字体大小
-    :return: 包含该字符的字体
-    """
-    for font_path in fonts:
-        try:
-            font = ImageFont.truetype(font_path, font_size)
-
-            bbox = font.getmask(char).getbbox()
-            print(bbox)
-            print(font.getbbox(char))
-        except Exception as e:
-            LOGGER.exception(e)
-    return None
+    save_pdf(output_dir, os.path.join(params.get('pdf_output_dir'), f'{bookname}.pdf'))
 
 
 if __name__ == '__main__':
     main()
-    # check_font_for_char('汉', ['fonts/ZiYue_Song_Keben_GBK_Updated.ttf'], 44)
