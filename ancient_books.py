@@ -8,6 +8,7 @@ import random
 import shutil
 from multiprocessing import Pool
 from pprint import pprint
+from re import match
 
 from opencc import OpenCC
 from PIL import ImageFont, Image, ImageDraw, ImageEnhance, ImageFilter
@@ -230,13 +231,14 @@ def split_paragraph(chapter_name, paragraph, params):
     lines = []
     remain_height = valid_height
     for i in range(len(sentences)):
+
         sentence = sentences[i]
         annotation = None
         if i < len(annotations):
             annotation = annotations[i]
         if remain_height < valid_height:
             remain_content_char_space = remain_height // (content_char_height + content_char_space)
-            if remain_content_char_space == 0:
+            if remain_content_char_space <= 0:
                 remain_height = valid_height
             elif remain_content_char_space < len(sentence):
                 lines[-1].get('line').append(
@@ -255,9 +257,8 @@ def split_paragraph(chapter_name, paragraph, params):
                 remain_height = valid_height
         if annotation:
             if remain_height < valid_height:
-                remain_annotation_char_space = remain_height // (
-                        annotation_char_height + annotation_char_space) * 2
-                if remain_annotation_char_space == 0:
+                remain_annotation_char_space = remain_height // ((annotation_char_height + annotation_char_space) * 2) * 4
+                if remain_annotation_char_space <= 0:
                     remain_height = valid_height
                 elif remain_annotation_char_space < len(annotation):
                     lines[-1].get('line').append(dict(type=TextType.ANNOTATION,
@@ -267,10 +268,11 @@ def split_paragraph(chapter_name, paragraph, params):
                     annotation = annotation[remain_annotation_char_space:]
                 else:
                     lines[-1].get('line').append(dict(type=TextType.ANNOTATION, value=annotation))
-                    remain_height -= (math.ceil(len(annotation) / 2)) * (
+                    count = math.ceil(len(annotation) / 2)
+                    if count % 2 != 0:
+                        count += 1
+                    remain_height -= count * (
                             annotation_char_height + annotation_char_space)
-                    if math.ceil(len(annotation) / 2) % 2 != 0:
-                        remain_height -= (annotation_char_height + annotation_char_space)
                     annotation = None
         for part in cut(annotation, max_annotation_chars_per_line):
             lines.append(
@@ -634,7 +636,6 @@ def gen_images(texts, params):
     text_lines = split_text(texts, params)
     line_count = params.get('line_count')
 
-    # pprint(text_lines)
     page = 1
     with Pool(processes=10) as pool:
         tasks = []
@@ -807,6 +808,12 @@ def draw_middle_line(draw, bookname, chapter_name, page, line_width, params):
             page_y += char_height
 
 
+def extract_page_number(file_path):
+    file_name = os.path.basename(file_path)
+    match = re.search(r'(\d+)', file_name)
+    return int(match.group(0)) if match else 0
+
+
 def save_pdf(source_path, target_path):
     """
     保存圖片為PDF
@@ -825,7 +832,7 @@ def save_pdf(source_path, target_path):
     for file in files:
         if file.endswith('.png') or file.endswith('.jpg'):
             image_files.append(os.path.join(source_path, file))
-    image_files.sort()
+    image_files = sorted(image_files, key=lambda x: extract_page_number(x))
 
     images = [Image.open(image_file).convert('RGB') for image_file in image_files]
     if images:
