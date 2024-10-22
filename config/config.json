@@ -9,6 +9,7 @@
   ],
   "chapter_font_size": 54,
   "chapter_font_color": "black",
+  "chapter_font_color_rgba": [0, 0, 0, 255],
   "content_font_paths": [
     "fonts/ZiYue_Song_Keben_GBK_Updated.ttf",
     "fonts/ZiYue_Song_Keben_Tranditional_Supplimentary.otf",
@@ -17,8 +18,9 @@
     "fonts/HanYi_ChangLi_Song_Keben_JingXiu.ttf",
     "fonts/FangZheng_Song_Keben_XiuKai_GBK.TTF"
   ],
-  "content_font_size": 44,
+  "content_font_size": 48,
   "content_font_color": "black",
+  "content_font_color_rgba": [0, 0, 0, 255],
   "content_char_space": 0,
   "annotation_font_paths": [
     "fonts/ZiYue_Song_Keben_GBK_Updated.ttf",
@@ -28,36 +30,41 @@
     "fonts/HanYi_ChangLi_Song_Keben_JingXiu.ttf",
     "fonts/FangZheng_Song_Keben_XiuKai_GBK.TTF"
   ],
-  "annotation_font_size": 22,
+  "annotation_font_size": 26,
   "annotation_font_color": "red",
+  "annotation_font_color_rgba": [255, 0, 0, 255],
   "annotation_char_space": 0,
   "middle_line_font_size": 40,
   "output_dir": "output/image",
   "pdf_output_dir": "output/pdf",
-  "width": 1400,
-  "height": 1300,
+  "width": 1754,
+  "height": 1240,
   "line_count": 10,
   "line_space": 0,
   "annotation_line_space": 5,
   "margin": [
-    200,
-    200,
-    50,
-    50
+    100,
+    100,
+    100,
+    100
   ],
   "border": 5,
   "border_color": "black",
+  "border_color_rgba": [0, 0, 0, 255],
   "background": null,
   "line_sep": true,
   "line_sep_color": "black",
+  "line_sep_color_rgba": [0, 0, 0, 255],
   "line_sep_width": 1,
   "with_noise": false,
   "noise_level": 0.005,
   "older": false,
   "bg_color": "rgb(238, 222, 176)",
+  "bg_color_rgba": [255, 255, 255, 0],
   "scale_factor": 4,
   "fishtail_top": 140,
   "fishtail_break_point": 10,
   "fishtail_height": 40,
-  "fishtail_line_space": 4
+  "fishtail_line_space": 4,
+  "image_mode": "RGBA"
 }
