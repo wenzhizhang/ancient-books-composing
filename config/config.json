@@ -36,6 +36,7 @@
   "annotation_char_space": 0,
   "middle_line_font_size": 40,
   "output_dir": "output/image",
+  "split_images_dir": "output/split_images",
   "pdf_output_dir": "output/pdf",
   "width": 1754,
   "height": 1240,
@@ -45,8 +46,8 @@
   "margin": [
     100,
     100,
-    100,
-    100
+    200,
+    200
   ],
   "border": 5,
   "border_color": "black",
@@ -66,5 +67,24 @@
   "fishtail_break_point": 10,
   "fishtail_height": 40,
   "fishtail_line_space": 4,
-  "image_mode": "RGBA"
+  "image_mode": "RGB",
+  "cover": {
+    "bg_color": "rgb(10, 45, 77)",
+    "bg_color_rgba": [10, 45, 77, 255],
+    "title_color": "rgb(255, 248, 220)",
+    "title_color_rgba": [255, 248, 220, 255],
+    "title_box_margin": [50, 50],
+    "title_box_width": 200,
+    "title_box_height": 800,
+    "outer_border_margin": [20, 20, 20, 20],
+    "outer_border_width": 5,
+    "inner_border_margin": [5, 5, 5, 5],
+    "inner_border_width": 1,
+    "border_color": "black",
+    "border_color_rgba": [0, 0, 0, 255],
+    "title_font": "fonts/SIMLI.TTF",
+    "title_font_size": 100,
+    "title_font_color": "black",
+    "title_font_color_rgba": [0, 0, 0, 255]
+  }
 }

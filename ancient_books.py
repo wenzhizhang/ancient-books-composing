@@ -258,7 +258,7 @@ def split_paragraph(chapter_name, paragraph, params):
         if annotation:
             if remain_height < valid_height:
                 remain_annotation_char_space = remain_height // (
-                            (annotation_char_height + annotation_char_space) * 2) * 4
+                        (annotation_char_height + annotation_char_space) * 2) * 4
                 if remain_annotation_char_space <= 0:
                     remain_height = valid_height
                 elif remain_annotation_char_space < len(annotation):
@@ -538,6 +538,7 @@ def gen_image_with_fixed_size(lines, params, output_dir, page, bg_image_path):
     :param bg_image_path: 背景图片路径
     :return:
     """
+    LOGGER.info(f'开始绘制第{page}页')
     width = params.get('width')
     height = params.get('height')
     image_mode = params.get('image_mode')
@@ -685,14 +686,16 @@ def draw_bg_image(params):
 
     if params.get('background'):
         LOGGER.debug('生成带背景的底图')
-        bg_image = Image.open(params.get('background')).resize((width, height), Image.Resampling.LANCZOS)
+        bg_image = Image.open(params.get('background')).resize((width, height),
+                                                               Image.Resampling.LANCZOS)
         image = Image.new(image_mode, (width, height))
         image.paste(bg_image)
     else:
         LOGGER.debug('生成底图')
         image = Image.new(image_mode, (width, height), color=bg_color)
 
-    image_fishtail = Image.new(params.get('image_mode'), (scale_factor * width, scale_factor * height), color=bg_color)
+    image_fishtail = Image.new(params.get('image_mode'),
+                               (scale_factor * width, scale_factor * height), color=bg_color)
 
     fishtail_draw = ImageDraw.Draw(image_fishtail)
 
@@ -702,7 +705,8 @@ def draw_bg_image(params):
     fishtail_break_point = params.get('fishtail_break_point')
     center_x = width - margin[3] - border - 3 - line_width * params.get('line_count')
     center_y = margin[0] + border + 3 + fishtail_top
-    draw_fishtail(fishtail_draw, scale_factor, center_x, center_y, line_width, fishtail_height, fishtail_line_space, fishtail_break_point, color=border_color)
+    draw_fishtail(fishtail_draw, scale_factor, center_x, center_y, line_width, fishtail_height,
+                  fishtail_line_space, fishtail_break_point, color=border_color)
     layer_fishtail = image_fishtail.resize((width, height), Image.Resampling.LANCZOS)
 
     image.paste(layer_fishtail)
@@ -711,17 +715,20 @@ def draw_bg_image(params):
 
     LOGGER.debug('绘制边框')
     LOGGER.debug('绘制外层边框')
-    draw.rectangle([margin[2], margin[0], width - (margin[3]), height - margin[1]], outline=border_color, width=border)
+    draw.rectangle([margin[2], margin[0], width - (margin[3]), height - margin[1]],
+                   outline=border_color, width=border)
     LOGGER.debug('绘制内层边框')
-    draw.rectangle([margin[2] + border + 2, margin[0] + border + 2, width - margin[3] - border - 2, height - margin[1] - border - 2], outline=border_color, width=1)
+    draw.rectangle([margin[2] + border + 2, margin[0] + border + 2, width - margin[3] - border - 2,
+                    height - margin[1] - border - 2], outline=border_color, width=1)
 
     if params.get('line_sep'):
         LOGGER.debug('绘制行分隔线')
         for i in range(params.get('line_count') * 2):
             x = width - margin[3] - (i + 1) * line_width - border - 3
-            draw.line([(x, margin[0] + border + 3), (x, height - margin[1] - border - 3)], fill=params.get('line_sep_color'), width=params.get('line_sep_width'))
+            draw.line([(x, margin[0] + border + 3), (x, height - margin[1] - border - 3)],
+                      fill=params.get('line_sep_color'), width=params.get('line_sep_width'))
 
-    bg_folder = os.path.join('image', 'backgroud')
+    bg_folder = os.path.join('output', 'image', 'backgroud')
     if not os.path.exists(bg_folder):
         os.makedirs(bg_folder)
 
@@ -764,21 +771,15 @@ def draw_fishtail(draw, scale_factor, x, y, line_width, fishtail_height, fishtai
     ]
 
     # 绘制多边形
-    # draw.polygon(points, fill=color, outline=color)
     draw.polygon(points, fill=color, outline=color)
-    # draw.line([(x, y - fishtail_line_space), (x - line_width, y - fishtail_line_space)],
-    #           fill='black', width=scale_factor)
+
     draw.line([(x, y - fishtail_line_space), (x - line_width, y - fishtail_line_space)],
               fill=color, width=scale_factor)
-    # draw.line([(x, y + fishtail_height + fishtail_line_space),
-    #            (x - line_width / 2, y + fishtail_break_point + fishtail_line_space)], fill='black',
-    #           width=scale_factor)
+
     draw.line([(x, y + fishtail_height + fishtail_line_space),
                (x - line_width / 2, y + fishtail_break_point + fishtail_line_space)], fill=color,
               width=scale_factor)
-    # draw.line([(x - line_width / 2, y + fishtail_break_point + fishtail_line_space),
-    #            (x - line_width, y + fishtail_height + fishtail_line_space)], fill='black',
-    #           width=scale_factor)
+
     draw.line([(x - line_width / 2, y + fishtail_break_point + fishtail_line_space),
                (x - line_width, y + fishtail_height + fishtail_line_space)], fill=color,
               width=scale_factor)
@@ -822,7 +823,6 @@ def draw_middle_line(draw, bookname, chapter_name, page, line_width, params):
         char = chapter_name[i]
         font = load_font_for_char(char, font_paths, font_size)
         if font:
-            # draw.text((chapter_x, chapter_y), char, font=font, fill='black')
             draw.text((chapter_x, chapter_y), char, font=font, fill=font_color)
             chapter_y += char_height
 
@@ -833,7 +833,6 @@ def draw_middle_line(draw, bookname, chapter_name, page, line_width, params):
         char = page[i]
         font = load_font_for_char(char, font_paths, font_size)
         if font:
-            # draw.text((page_x, page_y), char, font=font, fill='black')
             draw.text((page_x, page_y), char, font=font, fill=font_color)
             page_y += char_height
 
@@ -902,8 +901,106 @@ def load_config(conf_path: str) -> dict:
         params['border_color'] = tuple(params.get('border_color_rgba'))
         params['line_sep_color'] = tuple(params.get('line_sep_color_rgba'))
         params['bg_color'] = tuple(params.get('bg_color_rgba'))
+        params['cover']['bg_color'] = tuple(params.get('cover').get('bg_color_rgba'))
+        params['cover']['title_color'] = tuple(params.get('cover').get('title_color_rgba'))
+        params['cover']['border_color'] = tuple(params.get('cover').get('border_color_rgba'))
+        params['cover']['title_font_color'] = tuple(params.get('cover').get('title_font_color_rgba'))
 
     return params
+
+
+def create_cover(params):
+    """
+    绘制封面图
+    :param params: 程序参数字典
+    :return: None
+    """
+    LOGGER.info('開始繪製封面')
+    width = params.get('width')
+    height = params.get('height')
+    bookname = params.get('bookname')
+    image = Image.new(params.get('image_mode'), (width // 2, height), color=(10, 45, 77, 255))
+    draw = ImageDraw.Draw(image)
+
+    cover_params = params.get('cover')
+    title_box_margin = cover_params.get('title_box_margin')
+    title_box_width = cover_params.get('title_box_width')
+    title_box_height = cover_params.get('title_box_height')
+    outer_border_margin = cover_params.get('outer_border_margin')
+    outer_border_width = cover_params.get('outer_border_width')
+    inner_border_margin = cover_params.get('inner_border_margin')
+    inner_border_width = cover_params.get('inner_border_width')
+    border_color = cover_params.get('border_color')
+    outer_border_xy = [title_box_margin[0] + outer_border_margin[2], title_box_margin[1] + outer_border_margin[0],
+                    title_box_margin[0] + title_box_width - outer_border_margin[3],
+                    title_box_margin[1] + title_box_height - outer_border_margin[1]]
+    inner_border_xy = [title_box_margin[0] + outer_border_margin[2] + outer_border_width + inner_border_margin[2], title_box_margin[1] + outer_border_margin[0] + outer_border_width + inner_border_margin[0],
+                    title_box_margin[0] + title_box_width - outer_border_margin[3] - outer_border_width - inner_border_margin[3],
+                    title_box_margin[1] + title_box_height - outer_border_margin[1] - outer_border_width - inner_border_margin[1]]
+    inner_box_width = title_box_width - outer_border_margin[2] - outer_border_width * 2 - inner_border_margin[2] - inner_border_width * 2 - inner_border_margin[3] - outer_border_margin[3]
+    inner_box_height = title_box_height - outer_border_margin[0] - outer_border_width * 2 - inner_border_margin[0] - inner_border_width * 2 - inner_border_margin[1] - outer_border_margin[1]
+
+
+    # 绘制书名底框
+    draw.rectangle([title_box_margin[0], title_box_margin[1], title_box_margin[0] + title_box_width,
+                    title_box_margin[1] + title_box_height], fill=cover_params.get('title_color'))
+
+    # 绘制书名外边框
+    draw.rectangle(outer_border_xy, outline=border_color, width=outer_border_width)
+
+    # 绘制书名内边框
+    draw.rectangle(inner_border_xy, outline=border_color, width=inner_border_width)
+
+    # 绘制书名
+    title_font_path = cover_params.get('title_font')
+    title_font_size = cover_params.get('title_font_size')
+    title_font_color = cover_params.get('title_font_color')
+    font = ImageFont.truetype(title_font_path, title_font_size)
+    title_char_width, title_char_height = font.getbbox('書')[2], font.getbbox('書')[3]
+    x = title_box_margin[0] + outer_border_margin[2] + outer_border_width + inner_border_margin[2] + inner_box_width // 2 - title_char_width // 2
+    y = title_box_margin[1] + 50
+    for char in bookname:
+        font = load_font_for_char(char, [title_font_path], title_font_size)
+        if font:
+            draw.text((x, y), char, font=font, fill=title_font_color)
+            y += title_char_height
+
+    output_path = os.path.join('output', 'image', bookname, 'Page-0.png')
+    image.save(output_path)
+    LOGGER.info(f'封面繪製完成，保存至文件{output_path}')
+
+
+def split_pages(image_dir, target_dir):
+    """
+    将筒子页图像从中部分成两页
+    :param image_path: 待分割图片目录
+    :param target_dir: 分割后的图片保存目录
+    :return: None
+    """
+    LOGGER.info('开始分割筒子页')
+    if os.path.exists(target_dir):
+        shutil.rmtree(target_dir)
+    os.makedirs(target_dir)
+
+    for file in os.listdir(image_dir):
+        page = extract_page_number(file)
+        file_path = os.path.join(image_dir, file)
+        if page == 0:
+            shutil.copy(file_path, os.path.join(target_dir, file))
+            continue
+        image = Image.open(file_path)
+        width, height = image.size
+
+        crop_width = width // 2
+        box_left = (0, 0, crop_width, height)
+        box_right = (crop_width, 0, width, height)
+        cropped_image_left = image.crop(box_left)
+        cropped_image_right = image.crop(box_right)
+        output_page_left_path = os.path.join(target_dir, f'Page-{2 * page}.png')
+        output_page_right_path = os.path.join(target_dir, f'Page-{2 * page - 1}.png')
+        cropped_image_left.save(output_page_left_path)
+        cropped_image_right.save(output_page_right_path)
+    LOGGER.info(f'筒子页分割完成，文件保存至{target_dir}')
 
 
 def main():
@@ -918,11 +1015,16 @@ def main():
     bookname, texts = load_text(input_path)
 
     output_dir = os.path.join(params.get('output_dir'), bookname)
+    split_images_dir = os.path.join(params.get('split_images_dir'), bookname)
+
     params = adjust_font(params)
     params['output_dir'] = output_dir
     params['bookname'] = bookname
     gen_images(texts, params)
+
+    split_pages(output_dir, split_images_dir)
     save_pdf(output_dir, os.path.join(params.get('pdf_output_dir'), f'{bookname}.pdf'))
+    create_cover(params)
 
 
 if __name__ == '__main__':
